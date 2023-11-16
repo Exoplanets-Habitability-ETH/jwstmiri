@@ -22,7 +22,6 @@ from astropy.io import fits
 
 
 def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check): # define in and output directory (strings), which stages (list with strings included) should be preocessed, which pid, obs, resolution (MRS or LRS or IMA) and detector is going to be processed (strings), and whether the data should be loaded and plotted as a check (bool)
-    # input_dir = '/Users/helenakuehnle/Dateien/PhD/Analysis/WISE_J0855/'
     print(f"input_dir: {input_dir}, output_dir: {output_dir}, pid: {pid}, obseravtion: {obs}, resolution: {res}, detector: {det}, stages: {stages}, load data and plot: {check}")
     # Point to where you want the output science results to go
     output_dir = os.path.join(output_dir, 'pipelined/')
@@ -227,7 +226,6 @@ def nodsubtraction(spec2_dir): #TODO: undersatnd structure here, what needs to b
 def checkdata(output_cubes):
     data_str = [d for d in glob.glob(output_cubes + "*_x1d.fits")]
     data_str = sorted(data_str)
-    # data = fits.getdata('/Users/helenakuehnle/Dateien/PhD/Analysis/WISE_J0855/pipelined/stage3/cubes/Level3_ch2-short_x1d.fits')
     data_all = []
 
     for i in range(len(data_str)):
@@ -239,7 +237,6 @@ def checkdata(output_cubes):
 
     data_str3d = [d for d in glob.glob(output_cubes + "*_s3d.fits")]
     data_str3d = sorted(data_str3d)
-    # data = fits.getdata('/Users/helenakuehnle/Dateien/PhD/Analysis/WISE_J0855/pipelined/stage3/cubes/Level3_ch2-short_x1d.fits')
     data_all3d = []
 
     for i in range(len(data_str3d)):
