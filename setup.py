@@ -1,11 +1,9 @@
-#!/usr/bin/env python
-from setuptools import setup, find_packages
-
+from setuptools import setup
 
 setup(
     name='jwstmiri',
     version='0.0.1',
-    packages=['data', 'plots', 'tests', 'pipeline'],
+    packages=['tests', 'jwstmiri', 'jwstmiri.data', 'jwstmiri.plots', 'jwstmiri.pipeline'],
     url='https://github.com/Exoplanets-Habitability-ETH/jwstmiri/',
     license='MIT',
     author='Polychronis Patapis',
@@ -23,4 +21,3 @@ setup(
         "Programming Language :: Python :: 3.11",
     ],
 )
-
