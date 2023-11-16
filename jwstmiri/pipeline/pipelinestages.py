@@ -21,72 +21,80 @@ from jwst.associations.lib.rules_level3_base import DMS_Level3_Base # Definition
 from astropy.io import fits
 
 
-def pipeline(input_dir, output_dir, stages, check): # define in and output directory (strings), which stages (list with strings included) should be preocessed, and whether the data should be loaded and plotted as a check (bool)
+def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check): # define in and output directory (strings), which stages (list with strings included) should be preocessed, which pid, obs, resolution (MRS or LRS or IMA) and detector is going to be processed (strings), and whether the data should be loaded and plotted as a check (bool)
     # input_dir = '/Users/helenakuehnle/Dateien/PhD/Analysis/WISE_J0855/'
-
+    print(f"input_dir: {input_dir}, output_dir: {output_dir}, pid: {pid}, obseravtion: {obs}, resolution: {res}, detector: {det}, stages: {stages}, load data and plot: {check}")
     # Point to where you want the output science results to go
     output_dir = os.path.join(output_dir, 'pipelined/')
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
     # We need to check that the desired output directories exist, and if not create them
-    if '1' in stages:
+    if 1 in stages:
         det1_dir = os.path.join(output_dir, 'stage1/')  # Detector1 pipeline outputs will go here
         if not os.path.exists(det1_dir):
             os.makedirs(det1_dir)
-    elif '2' in stages:
+    elif 2 in stages:
         spec2_dir = os.path.join(output_dir, 'stage2/')  # Spec2 pipeline outputs will go here
         if not os.path.exists(spec2_dir):
             os.makedirs(spec2_dir)
-    elif '3' in stages:
+    elif 3 in stages:
         spec3_dir = os.path.join(output_dir, 'stage3/')  # Spec3 pipeline outputs will go here
         if not os.path.exists(spec3_dir):
             os.makedirs(spec3_dir)
 
 
-    # reordering of files
-    files = [f for f in glob.glob(input_dir + "*/*rate.fits")]
-    files = sorted(files)
-    print(f"Found {len(files)} files to process")
-
-    folders = ["obs5_MRS_SHORT", "obs5_MRS_MEDIUM", "obs5_MRS_LONG"]
+    folders = []
+    for o in obs:
+        for r in res:
+            for d in det:
+                folders.append(f"obs{o}_{r}_{d}") # ["obs5_MRS_SHORT", "obs5_MRS_MEDIUM", "obs5_MRS_LONG"]
+    print(folders)
     print(f"Use {len(folders)} to process")
+
+    # reordering of files
+    files = []
+    for fol in folders:
+        files.append([f for f in glob.glob(input_dir + fol + "/*rate.fits")])
+    files = [item for sublist in files for item in sublist]
+    files = sorted(files)
+    print(files)
+    print(f"Found {len(files)} files to process")
 
     stages_post = []
 
     # setup and run stage 2
-    if '2' in stages:
+    if 2 in stages:
         print(f"Start stage 2 processing")
         setupstage2(spec2_dir, files)
-        stages_post.append('2')
+        stages_post.append(2)
     else:
         print(f"Skip stage 2")
 
-    # setup and run stage 3
-    if ('3' in stages) and (os.path.exists(spec2_dir)):
-        print(f"Start stage 3 processing")
-        out3 = setupstage3(folders, spec2_dir, spec3_dir)
-        stages_post.append('3')
-    else:
-        print(f"Skip stage 3")
+    # # setup and run stage 3
+    # if (3 in stages) and (os.path.exists(spec2_dir)):
+    #     print(f"Start stage 3 processing")
+    #     out3 = setupstage3(folders, spec2_dir, spec3_dir)
+    #     stages_post.append(3)
+    # else:
+    #     print(f"Skip stage 3")
 
     # finish
     print(f"Data reduction of stages {stages_post} successful.")
 
-    if check:
-        checkdata(out3)
+    # if check:
+    #     checkdata(out3)
 
 
 def setupstage2(spec2_dir, files):
     # run stage 2 for all detector files
     for f in files:
         output2 = spec2_dir + f.split("/")[-2] + "/"
-
         # run stage 2
-        runspec2(f, output2)
+        # runspec2(f, output2)
 
         # do nod subtraction
-        nodsubtraction(output2)
+        # nodsubtraction(output2)
 
 
 def setupstage3(folders, spec2_dir, spec3_dir):
@@ -97,7 +105,7 @@ def setupstage3(folders, spec2_dir, spec3_dir):
 
     # run stage 3
     for folder in folders:
-        sstring = spec2_dir + folder + '/*calnodsub.fits'
+        sstring = spec2_dir + folder + '/*cal.fits'
         calfiles = np.array(sorted(glob.glob(sstring)))
         print('Found ' + str(len(calfiles)) + f' input files to process for folder {folder}')
 
@@ -171,7 +179,7 @@ def writel3asn(files, asnfile, prodname, **kwargs):
     with open(asnfile, 'w') as outfile:
         outfile.write(serialized)
 
-def nodsubtraction(spec2_dir):
+def nodsubtraction(spec2_dir): #TODO: undersatnd structure here, what needs to be set in the function, folder still hard coded
     # nod subtraction on all channels, improves channel 4B and 4C the most
     for folder in ["obs5_MRS_SHORT", "obs5_MRS_MEDIUM", "obs5_MRS_LONG"]:
         files = [f for f in glob.glob(spec2_dir + folder + "/*cal.fits")]
