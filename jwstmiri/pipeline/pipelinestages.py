@@ -21,24 +21,26 @@ from jwst.associations.lib.rules_level3_base import DMS_Level3_Base # Definition
 from astropy.io import fits
 
 
-def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check): # define in and output directory (strings), which stages (list with strings included) should be preocessed, which pid, obs, resolution (MRS or LRS or IMA) and detector is going to be processed (strings), and whether the data should be loaded and plotted as a check (bool)
-    print(f"input_dir: {input_dir}, output_dir: {output_dir}, pid: {pid}, obseravtion: {obs}, resolution: {res}, detector: {det}, stages: {stages}, load data and plot: {check}")
+def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check, cores): # define in and output directory (strings), which stages (list with strings included) should be preocessed, which pid, obs, resolution (MRS or LRS or IMA) and detector is going to be processed (strings), and whether the data should be loaded and plotted as a check (bool)
+    print(f"input_dir: {input_dir}, output_dir: {output_dir}, pid: {pid}, obseravtion: {obs}, resolution: {res}, detector: {det}, stages: {stages}, load data and plot: {check}, number of cores: {cores}")
+    # TODO: add to run the code in parallel of n cores, specify cores as input in function
     # Point to where you want the output science results to go
     output_dir = os.path.join(output_dir, 'pipelined/')
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
     # We need to check that the desired output directories exist, and if not create them
+    det1_dir = os.path.join(output_dir, 'stage1/')  # Detector1 pipeline outputs will go here
+    spec2_dir = os.path.join(output_dir, 'stage2/')  # Spec2 pipeline outputs will go here
+    spec3_dir = os.path.join(output_dir, 'stage3/')  # Spec3 pipeline outputs will go here
+
     if 1 in stages:
-        det1_dir = os.path.join(output_dir, 'stage1/')  # Detector1 pipeline outputs will go here
         if not os.path.exists(det1_dir):
             os.makedirs(det1_dir)
     elif 2 in stages:
-        spec2_dir = os.path.join(output_dir, 'stage2/')  # Spec2 pipeline outputs will go here
         if not os.path.exists(spec2_dir):
             os.makedirs(spec2_dir)
     elif 3 in stages:
-        spec3_dir = os.path.join(output_dir, 'stage3/')  # Spec3 pipeline outputs will go here
         if not os.path.exists(spec3_dir):
             os.makedirs(spec3_dir)
 
@@ -65,38 +67,38 @@ def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check): # define
     # setup and run stage 2
     if 2 in stages:
         print(f"Start stage 2 processing")
-        setupstage2(spec2_dir, files)
+        setupstage2(files, spec2_dir, folders)
         stages_post.append(2)
     else:
         print(f"Skip stage 2")
 
-    # # setup and run stage 3
-    # if (3 in stages) and (os.path.exists(spec2_dir)):
-    #     print(f"Start stage 3 processing")
-    #     out3 = setupstage3(folders, spec2_dir, spec3_dir)
-    #     stages_post.append(3)
-    # else:
-    #     print(f"Skip stage 3")
+    # setup and run stage 3
+    if (3 in stages) and (os.path.exists(spec2_dir)):
+        print(f"Start stage 3 processing")
+        out3 = setupstage3(spec2_dir, spec3_dir, folders)
+        stages_post.append(3)
+    else:
+        print(f"Skip stage 3")
 
     # finish
     print(f"Data reduction of stages {stages_post} successful.")
 
-    # if check:
-    #     checkdata(out3)
+    if check:
+        checkdata(out3)
 
 
-def setupstage2(spec2_dir, files):
+def setupstage2(files, spec2_dir, folders):
     # run stage 2 for all detector files
     for f in files:
         output2 = spec2_dir + f.split("/")[-2] + "/"
         # run stage 2
-        # runspec2(f, output2)
+        runspec2(f, output2)
 
-        # do nod subtraction
-        # nodsubtraction(output2)
+    # do nod subtraction
+    nodsubtraction(spec2_dir, folders)
 
 
-def setupstage3(folders, spec2_dir, spec3_dir):
+def setupstage3(spec2_dir, spec3_dir, folders):
     # Find and sort all of the input files
     output3 = spec3_dir + "cubes/"
     if not os.path.exists(output3):
@@ -104,7 +106,7 @@ def setupstage3(folders, spec2_dir, spec3_dir):
 
     # run stage 3
     for folder in folders:
-        sstring = spec2_dir + folder + '/*cal.fits'
+        sstring = spec2_dir + folder + '/*calnodsub.fits'
         calfiles = np.array(sorted(glob.glob(sstring)))
         print('Found ' + str(len(calfiles)) + f' input files to process for folder {folder}')
 
@@ -115,7 +117,7 @@ def setupstage3(folders, spec2_dir, spec3_dir):
     return output3
 
 
-def runspec2(filename, output):
+def runspec2(filename, output): # TODO: add dictionary with all parameters as inputs into the pipeline
     if not os.path.exists(output):
         os.mkdir(output)
     spec2 = Spec2Pipeline()
@@ -137,7 +139,7 @@ def runspec2(filename, output):
 
 
 
-def runspec3(filename, out_dir):
+def runspec3(filename, out_dir): # TODO: add dictionary with all parameters as inputs into the pipeline
     # This initial setup is just to make sure that we get the latest parameter reference files
     # pulled in for our files.  This is a temporary workaround to get around an issue with
     # how this pipeline calling method works.
@@ -157,9 +159,9 @@ def runspec3(filename, out_dir):
     spec3.mrs_imatch.skip = True  # background gets matched
     spec3.cube_build.skip = False  # build cube
     spec3.extract_1d.skip = False  # average of pixels as 1d spectrum (fast)
-    # new parameters
-    # spec3.extract_1d.ifu_autocen = True #, autocenter of circle where to take the mean
-    spec3.extract_1d.center_xy = 24, 29
+    # TODO: implement switch between channels or rerun entire stage and replace ceratin files: use autocen for default, need to correct e.g. channel 1b manually as flux is to small
+    spec3.extract_1d.ifu_autocen = True #, autocenter of circle where to take the mean
+    #spec3.extract_1d.center_xy = 24, 29
     spec3.extract_1d.ifu_rfcorr = True  # , residual fringe correction instead in spec2
     spec3.extract_1d.subtract_background = False  # , take ring around as background and subtract, only do this the first time
     spec3.extract_1d.ifu_rscale = 1  # set number of FWHMs fro radius
@@ -178,9 +180,9 @@ def writel3asn(files, asnfile, prodname, **kwargs):
     with open(asnfile, 'w') as outfile:
         outfile.write(serialized)
 
-def nodsubtraction(spec2_dir): #TODO: undersatnd structure here, what needs to be set in the function, folder still hard coded
+def nodsubtraction(spec2_dir, folders):
     # nod subtraction on all channels, improves channel 4B and 4C the most
-    for folder in ["obs5_MRS_SHORT", "obs5_MRS_MEDIUM", "obs5_MRS_LONG"]:
+    for folder in folders:
         files = [f for f in glob.glob(spec2_dir + folder + "/*cal.fits")]
         files = sorted(files)
         print(f"Found {len(files)} files to process")
@@ -235,16 +237,16 @@ def checkdata(output_cubes):
         dataz = np.array(list(zip(*data)))
         data_all.append(dataz)
 
-    data_str3d = [d for d in glob.glob(output_cubes + "*_s3d.fits")]
-    data_str3d = sorted(data_str3d)
-    data_all3d = []
-
-    for i in range(len(data_str3d)):
-        data = data_str3d[i]
-        print(data)
-        data = fits.getdata(data)
-        dataz = np.array(list(zip(*data)))
-        data_all3d.append(dataz)
+    # data_str3d = [d for d in glob.glob(output_cubes + "*_s3d.fits")]
+    # data_str3d = sorted(data_str3d)
+    # data_all3d = []
+    #
+    # for i in range(len(data_str3d)):
+    #     data = data_str3d[i]
+    #     print(data)
+    #     data = fits.getdata(data)
+    #     dataz = np.array(list(zip(*data)))
+    #     data_all3d.append(dataz)
 
     # plot the model
     plt.figure(figsize=(12, 4))
@@ -256,4 +258,5 @@ def checkdata(output_cubes):
     # plt.plot(x,y,linewidth=0.5,color='k')
     plt.xlabel('wavelength [mum]')
     plt.ylabel('Flux [Jy]')
+    plt.show()
 
