@@ -67,7 +67,7 @@ def pipeline(input_dir, pid, obs, res, det, stages, input_vars, output_dir, chec
     # setup and run stage 2
     if 2 in stages:
         print(f"Start stage 2 processing")
-        setupstage2(files, spec2_dir, folders)
+        setupstage2(files, spec2_dir, folders, input_vars)
         stages_post.append(2)
     else:
         print(f"Skip stage 2")
@@ -75,7 +75,7 @@ def pipeline(input_dir, pid, obs, res, det, stages, input_vars, output_dir, chec
     # setup and run stage 3
     if (3 in stages) and (os.path.exists(spec2_dir)):
         print(f"Start stage 3 processing")
-        out3 = setupstage3(spec2_dir, spec3_dir, folders)
+        out3 = setupstage3(spec2_dir, spec3_dir, folders, input_vars)
         stages_post.append(3)
     else:
         print(f"Skip stage 3")
