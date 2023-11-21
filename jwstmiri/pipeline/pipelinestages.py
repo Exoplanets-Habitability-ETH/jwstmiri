@@ -147,9 +147,15 @@ def runspec3(filename, out_dir, input_vars):
     crds_config = Spec3Pipeline.get_config_from_reference(filename)
     spec3 = Spec3Pipeline.from_config_section(crds_config)
 
-    spec3.output_dir = out_dir
-
     vars = input_vars['stage3']
+
+    if vars['ifu_autocen']:
+        spec3.output_dir = out_dir
+    else:
+        out_alt = os.path.join(out_dir, 'manualcent/')
+        if not os.path.exists(out_alt):
+            os.mkdir(out_alt)
+        spec3.output_dir = out_alt
 
     spec3.save_results = vars['save_results'] #True
 
