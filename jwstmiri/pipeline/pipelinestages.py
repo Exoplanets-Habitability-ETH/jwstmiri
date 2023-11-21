@@ -37,10 +37,10 @@ def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check, cores): #
     if 1 in stages:
         if not os.path.exists(det1_dir):
             os.makedirs(det1_dir)
-    elif 2 in stages:
+    if 2 in stages:
         if not os.path.exists(spec2_dir):
             os.makedirs(spec2_dir)
-    elif 3 in stages:
+    if 3 in stages:
         if not os.path.exists(spec3_dir):
             os.makedirs(spec3_dir)
 
