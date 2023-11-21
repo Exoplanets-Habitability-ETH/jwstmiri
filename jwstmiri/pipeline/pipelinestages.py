@@ -125,16 +125,16 @@ def runspec2(filename, output, input_vars):
     spec2.output_dir = output
 
     vars = input_vars['stage2']
-    spec2.assign_wcs.skip = vars['assign_wcs'] #False  # assign world coordinate system
-    spec2.bkg_subtract.skip = vars['bkg_subtract'] #True
-    spec2.flat_field.skip = vars['flat_field'] #False  # every pixel has same sensitivity
-    spec2.srctype.skip = vars['srctype'] #False  # source type
-    spec2.straylight.skip = vars['straylight'] #False  # scattered light inside detector corrected for in spatial dim
-    spec2.fringe.skip = vars['fringe'] #False  # coherent intereference inside detector in wvl dim, approximation
-    spec2.photom.skip = vars['photom'] #False  # DN/s to MJy/sr
-    spec2.residual_fringe.skip = vars['residual_fringe'] #True  # improve the fringe correction, fitting sin/cos
-    spec2.cube_build.skip = vars['cube_build'] #True  # build cubes (but before dithering)
-    spec2.extract_1d.skip = vars['extract_1d'] #True
+    spec2.assign_wcs.skip = vars['assign_wcs_skip'] #False  # assign world coordinate system
+    spec2.bkg_subtract.skip = vars['bkg_subtract_skip'] #True
+    spec2.flat_field.skip = vars['flat_field_skip'] #False  # every pixel has same sensitivity
+    spec2.srctype.skip = vars['srctype_skip'] #False  # source type
+    spec2.straylight.skip = vars['straylight_skip'] #False  # scattered light inside detector corrected for in spatial dim
+    spec2.fringe.skip = vars['fringe_skip'] #False  # coherent intereference inside detector in wvl dim, approximation
+    spec2.photom.skip = vars['photom_skip'] #False  # DN/s to MJy/sr
+    spec2.residual_fringe.skip = vars['residual_fringe_skip'] #True  # improve the fringe correction, fitting sin/cos
+    spec2.cube_build.skip = vars['cube_build_skip'] #True  # build cubes (but before dithering)
+    spec2.extract_1d.skip = vars['extract_1d_skip'] #True
     spec2.save_results = vars['save_results'] #True
     spec2(filename)
 
@@ -157,16 +157,16 @@ def runspec3(filename, out_dir, input_vars):
     spec3.cube_build.weighting = vars['weighting'] #'drizzle'  # 'emsm' or 'drizzle' #algorithm interpolating from point cloud to grid cube
     spec3.cube_build.coord_system = vars['coord_system'] #'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal' #which coordinate system for cube (often, ifualign (orthogonal to IFU), skyalign (in alpha dec, orthogonal to sky coord.))
 
-    spec3.assign_mtwcs.skip = vars['assign_mtwcs'] #False  # world coord system to mosaic
-    spec3.master_background.skip = vars['master_background'] #True  # no master background available (otherwise in writel3asn)
-    spec3.outlier_detection.skip = vars['outlier_detection'] #False  # bad pixels (stable), hot pixels (time dependent), cosmic ray showers
-    spec3.mrs_imatch.skip = vars['mrs_imatch'] #True  # background gets matched
-    spec3.cube_build.skip = vars['cube_build'] #False  # build cube
-    spec3.extract_1d.skip = vars['extract_1d'] #False  # average of pixels as 1d spectrum (fast)
+    spec3.assign_mtwcs.skip = vars['assign_mtwcs_skip'] #False  # world coord system to mosaic
+    spec3.master_background.skip = vars['master_background_skip'] #True  # no master background available (otherwise in writel3asn)
+    spec3.outlier_detection.skip = vars['outlier_detection_skip'] #False  # bad pixels (stable), hot pixels (time dependent), cosmic ray showers
+    spec3.mrs_imatch.skip = vars['mrs_imatch_skip'] #True  # background gets matched
+    spec3.cube_build.skip = vars['cube_build_skip'] #False  # build cube
+    spec3.extract_1d.skip = vars['extract_1d_skip'] #False  # average of pixels as 1d spectrum (fast)
     if vars['ifu_autocen']:
         spec3.extract_1d.ifu_autocen = True #, autocenter of circle where to take the mean
     else:
-        spec3.extract_1d.center_xy = vars['center_xy'] #24, 29
+        spec3.extract_1d.center_xy = vars['center_x'], vars['center_y'] #24, 29
     spec3.extract_1d.ifu_rfcorr = vars['ifu_rfcorr'] #True  # , residual fringe correction instead in spec2
     spec3.extract_1d.subtract_background = vars['subtract_background'] #False  # , take ring around as background and subtract, only do this the first time
     spec3.extract_1d.ifu_rscale = vars['ifu_rscale'] #1  # set number of FWHMs fro radius
