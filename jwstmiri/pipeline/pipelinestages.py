@@ -21,8 +21,8 @@ from jwst.associations.lib.rules_level3_base import DMS_Level3_Base # Definition
 from astropy.io import fits
 
 
-def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check, cores): # define in and output directory (strings), which stages (list with strings included) should be preocessed, which pid, obs, resolution (MRS or LRS or IMA) and detector is going to be processed (strings), and whether the data should be loaded and plotted as a check (bool)
-    print(f"input_dir: {input_dir}, output_dir: {output_dir}, pid: {pid}, obseravtion: {obs}, resolution: {res}, detector: {det}, stages: {stages}, load data and plot: {check}, number of cores: {cores}")
+def pipeline(input_dir, pid, obs, res, det, stages, input_vars, output_dir, check, cores): # define in and output directory (strings), which stages (list with strings included) should be preocessed, which pid, obs, resolution (MRS or LRS or IMA) and detector is going to be processed (strings), and whether the data should be loaded and plotted as a check (bool)
+    print(f"input_dir: {input_dir}, output_dir: {output_dir}, pid: {pid}, obseravtion: {obs}, resolution: {res}, detector: {det}, stages: {stages}, input variables: {input_vars}, load data and plot: {check}, number of cores: {cores}")
     # TODO: add to run the code in parallel of n cores, specify cores as input in function
     # Point to where you want the output science results to go
     output_dir = os.path.join(output_dir, 'pipelined/')
@@ -87,18 +87,18 @@ def pipeline(input_dir, pid, obs, res, det, stages, output_dir, check, cores): #
         checkdata(out3)
 
 
-def setupstage2(files, spec2_dir, folders):
+def setupstage2(files, spec2_dir, folders, input_vars):
     # run stage 2 for all detector files
     for f in files:
         output2 = spec2_dir + f.split("/")[-2] + "/"
         # run stage 2
-        runspec2(f, output2)
+        runspec2(f, output2, input_vars)
 
     # do nod subtraction
     nodsubtraction(spec2_dir, folders)
 
 
-def setupstage3(spec2_dir, spec3_dir, folders):
+def setupstage3(spec2_dir, spec3_dir, folders, input_vars):
     # Find and sort all of the input files
     output3 = spec3_dir + "cubes/"
     if not os.path.exists(output3):
@@ -113,33 +113,34 @@ def setupstage3(spec2_dir, spec3_dir, folders):
         # Make an association file that includes all of the different exposures
         asnfile = os.path.join(spec2_dir + folder, 'l3asn.json')
         writel3asn(calfiles, asnfile, 'Level3')
-        runspec3(asnfile, output3)
+        runspec3(asnfile, output3, input_vars)
     return output3
 
 
-def runspec2(filename, output): # TODO: add dictionary with all parameters as inputs into the pipeline
+def runspec2(filename, output, input_vars):
     if not os.path.exists(output):
         os.mkdir(output)
     spec2 = Spec2Pipeline()
 
     spec2.output_dir = output
 
-    spec2.assign_wcs.skip = False  # assign world coordinate system
-    spec2.bkg_subtract.skip = True
-    spec2.flat_field.skip = False  # every pixel has same sensitivity
-    spec2.srctype.skip = False  # source type
-    spec2.straylight.skip = False  # scattered light inside detector corrected for in spatial dim
-    spec2.fringe.skip = False  # coherent intereference inside detector in wvl dim, approximation
-    spec2.photom.skip = False  # DN/s to MJy/sr
-    spec2.residual_fringe.skip = True  # improve the fringe correction, fitting sin/cos
-    spec2.cube_build.skip = True  # build cubes (but before dithering)
-    spec2.extract_1d.skip = True
-    spec2.save_results = True
+    vars = input_vars['stage2']
+    spec2.assign_wcs.skip = vars['assign_wcs'] #False  # assign world coordinate system
+    spec2.bkg_subtract.skip = vars['bkg_subtract'] #True
+    spec2.flat_field.skip = vars['flat_field'] #False  # every pixel has same sensitivity
+    spec2.srctype.skip = vars['srctype'] #False  # source type
+    spec2.straylight.skip = vars['straylight'] #False  # scattered light inside detector corrected for in spatial dim
+    spec2.fringe.skip = vars['fringe'] #False  # coherent intereference inside detector in wvl dim, approximation
+    spec2.photom.skip = vars['photom'] #False  # DN/s to MJy/sr
+    spec2.residual_fringe.skip = vars['residual_fringe'] #True  # improve the fringe correction, fitting sin/cos
+    spec2.cube_build.skip = vars['cube_build'] #True  # build cubes (but before dithering)
+    spec2.extract_1d.skip = vars['extract_1d'] #True
+    spec2.save_results = vars['save_results'] #True
     spec2(filename)
 
 
 
-def runspec3(filename, out_dir): # TODO: add dictionary with all parameters as inputs into the pipeline
+def runspec3(filename, out_dir, input_vars):
     # This initial setup is just to make sure that we get the latest parameter reference files
     # pulled in for our files.  This is a temporary workaround to get around an issue with
     # how this pipeline calling method works.
@@ -147,24 +148,28 @@ def runspec3(filename, out_dir): # TODO: add dictionary with all parameters as i
     spec3 = Spec3Pipeline.from_config_section(crds_config)
 
     spec3.output_dir = out_dir
-    spec3.save_results = True
+
+    vars = input_vars['stage3']
+
+    spec3.save_results = vars['save_results'] #True
 
     # Cube building configuration
-    spec3.cube_build.weighting = 'drizzle'  # 'emsm' or 'drizzle' #algorithm interpolating from point cloud to grid cube
-    spec3.cube_build.coord_system = 'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal' #which coordinate system for cube (often, ifualign (orthogonal to IFU), skyalign (in alpha dec, orthogonal to sky coord.))
+    spec3.cube_build.weighting = vars['weighting'] #'drizzle'  # 'emsm' or 'drizzle' #algorithm interpolating from point cloud to grid cube
+    spec3.cube_build.coord_system = vars['coord_system'] #'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal' #which coordinate system for cube (often, ifualign (orthogonal to IFU), skyalign (in alpha dec, orthogonal to sky coord.))
 
-    spec3.assign_mtwcs.skip = False  # world coord system to mosaic
-    spec3.master_background.skip = True  # no master background available (otherwise in writel3asn)
-    spec3.outlier_detection.skip = False  # bad pixels (stable), hot pixels (time dependent), cosmic ray showers
-    spec3.mrs_imatch.skip = True  # background gets matched
-    spec3.cube_build.skip = False  # build cube
-    spec3.extract_1d.skip = False  # average of pixels as 1d spectrum (fast)
-    # TODO: implement switch between channels or rerun entire stage and replace ceratin files: use autocen for default, need to correct e.g. channel 1b manually as flux is to small
-    spec3.extract_1d.ifu_autocen = True #, autocenter of circle where to take the mean
-    #spec3.extract_1d.center_xy = 24, 29
-    spec3.extract_1d.ifu_rfcorr = True  # , residual fringe correction instead in spec2
-    spec3.extract_1d.subtract_background = False  # , take ring around as background and subtract, only do this the first time
-    spec3.extract_1d.ifu_rscale = 1  # set number of FWHMs fro radius
+    spec3.assign_mtwcs.skip = vars['assign_mtwcs'] #False  # world coord system to mosaic
+    spec3.master_background.skip = vars['master_background'] #True  # no master background available (otherwise in writel3asn)
+    spec3.outlier_detection.skip = vars['outlier_detection'] #False  # bad pixels (stable), hot pixels (time dependent), cosmic ray showers
+    spec3.mrs_imatch.skip = vars['mrs_imatch'] #True  # background gets matched
+    spec3.cube_build.skip = vars['cube_build'] #False  # build cube
+    spec3.extract_1d.skip = vars['extract_1d'] #False  # average of pixels as 1d spectrum (fast)
+    if vars['ifu_autocen']:
+        spec3.extract_1d.ifu_autocen = True #, autocenter of circle where to take the mean
+    else:
+        spec3.extract_1d.center_xy = vars['center_xy'] #24, 29
+    spec3.extract_1d.ifu_rfcorr = vars['ifu_rfcorr'] #True  # , residual fringe correction instead in spec2
+    spec3.extract_1d.subtract_background = vars['subtract_background'] #False  # , take ring around as background and subtract, only do this the first time
+    spec3.extract_1d.ifu_rscale = vars['ifu_rscale'] #1  # set number of FWHMs fro radius
     spec3(filename)
 
 # Define a useful function to write out a Lvl3 association file from an input list
