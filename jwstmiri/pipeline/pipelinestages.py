@@ -152,7 +152,7 @@ def runspec3(filename, out_dir, input_vars):
     if vars['ifu_autocen']:
         spec3.output_dir = out_dir
     else:
-        out_alt = os.path.join(out_dir, 'manualcent/')
+        out_alt = os.path.join(out_dir, 'manualcent_'+str(vars['center_x'])+'_'+str(vars['center_y'])+'/')
         if not os.path.exists(out_alt):
             os.mkdir(out_alt)
         spec3.output_dir = out_alt
