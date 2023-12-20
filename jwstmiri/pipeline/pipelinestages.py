@@ -231,7 +231,8 @@ def nodsubtraction(spec2_dir, folders):
         temp2 = im2.data - im1.data
 
         # for 1189obs16, add manual background subtraction for channels 1a and 2a 
-        if '1189' and 'obs16' in spec2_dir:
+        man_bgs = True
+        if man_bgs:
             print('manual background subtraction')
             if folder.split("_")[-1] == "SHORT":
                 bkg1 = np.median(temp1[800:1000, :516], axis=0)
