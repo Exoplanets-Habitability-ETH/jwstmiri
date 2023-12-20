@@ -230,11 +230,26 @@ def nodsubtraction(spec2_dir, folders):
         temp1 = im1.data - im2.data
         temp2 = im2.data - im1.data
 
+        # for 1189obs16, add manual background subtraction for channels 1a and 2a 
+        if '1189' and 'obs16' in spec2_dir:
+            print('manual background subtraction')
+            if folder.split("_")[-1] == "SHORT":
+                bkg1 = np.median(temp1[800:1000, :516], axis=0)
+                bkg2 = np.median(temp1[20:200, 516:], axis=0)
+                temp1[:, :516] = np.subtract(temp1[:, :516], bkg1)
+                temp1[:, 516:] = np.subtract(temp1[:, 516:], bkg2)
+
+                bkg1 = np.median(temp2[800:1000, :516], axis=0)
+                bkg2 = np.median(temp2[20:200, 516:], axis=0)
+                temp2[:, :516] = np.subtract(temp2[:, :516], bkg1)
+                temp2[:, 516:] = np.subtract(temp2[:, 516:], bkg2)
+        
         im1.data = temp1
         im2.data = temp2
 
         im1.to_fits(fnew1l, overwrite=True)
         im2.to_fits(fnew2l, overwrite=True)
+
 
 def checkdata(output_cubes):
     data_str = [d for d in glob.glob(output_cubes + "*_x1d.fits")]
