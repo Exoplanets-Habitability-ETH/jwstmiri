@@ -91,7 +91,7 @@ def setupstage2(files, spec2_dir, folders, input_vars):
     # run stage 2 for all detector files
     for f in files:
         output2 = spec2_dir + f.split("/")[-2] + "/"
-        # run stage 2
+      #   run stage 2
         runspec2(f, output2, input_vars)
 
     # do nod subtraction
@@ -194,6 +194,9 @@ def writel3asn(files, asnfile, prodname, **kwargs):
 def nodsubtraction(spec2_dir, folders):
     # nod subtraction on all channels, improves channel 4B and 4C the most
     for folder in folders:
+        print('#############################')
+        print('start nod subtraction')
+        print('#############################')
         files = [f for f in glob.glob(spec2_dir + folder + "/*cal.fits")]
         files = sorted(files)
         print(f"Found {len(files)} files to process")
@@ -233,18 +236,20 @@ def nodsubtraction(spec2_dir, folders):
         # for 1189obs16, add manual background subtraction for channels 1a and 2a 
         man_bgs = True
         if man_bgs:
+            print('#############################')
             print('manual background subtraction')
-            if folder.split("_")[-1] == "SHORT":
-                bkg1 = np.median(temp1[800:1000, :516], axis=0)
-                bkg2 = np.median(temp1[20:200, 516:], axis=0)
-                temp1[:, :516] = np.subtract(temp1[:, :516], bkg1)
-                temp1[:, 516:] = np.subtract(temp1[:, 516:], bkg2)
+            print('#############################')
+            #if folder.split("_")[-1] == "SHORT":
+            bkg1 = np.nanmedian(temp1[800:1000, :516], axis=0)
+            bkg2 = np.nanmedian(temp1[20:200, 516:], axis=0)
+            temp1[:, :516] = np.subtract(temp1[:, :516], bkg1)
+            temp1[:, 516:] = np.subtract(temp1[:, 516:], bkg2)
+            
+            bkg1 = np.nanmedian(temp2[800:1000, :516], axis=0)
+            bkg2 = np.nanmedian(temp2[20:200, 516:], axis=0)
+            temp2[:, :516] = np.subtract(temp2[:, :516], bkg1)
+            temp2[:, 516:] = np.subtract(temp2[:, 516:], bkg2)
 
-                bkg1 = np.median(temp2[800:1000, :516], axis=0)
-                bkg2 = np.median(temp2[20:200, 516:], axis=0)
-                temp2[:, :516] = np.subtract(temp2[:, :516], bkg1)
-                temp2[:, 516:] = np.subtract(temp2[:, 516:], bkg2)
-        
         im1.data = temp1
         im2.data = temp2
 
