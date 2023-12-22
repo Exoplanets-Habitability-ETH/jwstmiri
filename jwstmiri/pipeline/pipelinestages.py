@@ -218,21 +218,6 @@ def nodsubtraction(spec2_dir, folders):
         temp1 = im1.data - im2.data
         temp2 = im2.data - im1.data
 
-        im1.data = temp1
-        im2.data = temp2
-
-        im1.to_fits(fnew1s, overwrite=True)
-        im2.to_fits(fnew2s, overwrite=True)
-
-        fnew1l = fileslong[0].replace("cal.fits", "calnodsub.fits")
-        fnew2l = fileslong[1].replace("cal.fits", "calnodsub.fits")
-
-        im1 = jwst.datamodels.open(fileslong[0])
-        im2 = jwst.datamodels.open(fileslong[1])
-
-        temp1 = im1.data - im2.data
-        temp2 = im2.data - im1.data
-
         # for 1189obs16, add manual background subtraction for channels 1a and 2a 
         man_bgs = True
         if man_bgs:
@@ -244,11 +229,26 @@ def nodsubtraction(spec2_dir, folders):
             bkg2 = np.nanmedian(temp1[20:200, 516:], axis=0)
             temp1[:, :516] = np.subtract(temp1[:, :516], bkg1)
             temp1[:, 516:] = np.subtract(temp1[:, 516:], bkg2)
-            
+
             bkg1 = np.nanmedian(temp2[800:1000, :516], axis=0)
             bkg2 = np.nanmedian(temp2[20:200, 516:], axis=0)
             temp2[:, :516] = np.subtract(temp2[:, :516], bkg1)
             temp2[:, 516:] = np.subtract(temp2[:, 516:], bkg2)
+
+        im1.data = temp1
+        im2.data = temp2
+        
+        im1.to_fits(fnew1s, overwrite=True)
+        im2.to_fits(fnew2s, overwrite=True)
+
+        fnew1l = fileslong[0].replace("cal.fits", "calnodsub.fits")
+        fnew2l = fileslong[1].replace("cal.fits", "calnodsub.fits")
+
+        im1 = jwst.datamodels.open(fileslong[0])
+        im2 = jwst.datamodels.open(fileslong[1])
+
+        temp1 = im1.data - im2.data
+        temp2 = im2.data - im1.data
 
         im1.data = temp1
         im2.data = temp2
