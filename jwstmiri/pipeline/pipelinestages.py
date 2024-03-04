@@ -57,6 +57,8 @@ def pipeline(input_dir, pid, obs, res, det, stages, input_vars, output_dir, chec
     files = []
     for fol in folders:
         files.append([f for f in glob.glob(input_dir + fol + "/*rate.fits")])
+        #for 1275, obs4 test if showercorrected files show less offsets
+        #files.append([f for f in glob.glob(input_dir + fol + "/*rate_showers_masked.fits")])
     files = [item for sublist in files for item in sublist]
     files = sorted(files)
     print(files)
@@ -95,7 +97,8 @@ def setupstage2(files, spec2_dir, folders, input_vars):
         runspec2(f, output2, input_vars)
 
     # do nod subtraction
-    nodsubtraction(spec2_dir, folders)
+    if input_vars['stage2']['nodsub']:
+        nodsubtraction(spec2_dir, folders)
 
 
 def setupstage3(spec2_dir, spec3_dir, folders, input_vars):
@@ -106,7 +109,11 @@ def setupstage3(spec2_dir, spec3_dir, folders, input_vars):
 
     # run stage 3
     for folder in folders:
-        sstring = spec2_dir + folder + '/*calnodsub.fits'
+        if input_vars['stage2']['nodsub']:
+            sstring = spec2_dir + folder + '/*calnodsub.fits'
+        else:
+            #test if this changes the spectrum significantly for 1275, obs4
+            sstring = spec2_dir + folder + '/*cal.fits'
         calfiles = np.array(sorted(glob.glob(sstring)))
         print('Found ' + str(len(calfiles)) + f' input files to process for folder {folder}')
 
@@ -114,6 +121,14 @@ def setupstage3(spec2_dir, spec3_dir, folders, input_vars):
         asnfile = os.path.join(spec2_dir + folder, 'l3asn.json')
         writel3asn(calfiles, asnfile, 'Level3')
         runspec3(asnfile, output3, input_vars)
+
+        man_bckg = False #try manual background subtraction for pid1278 obs40 -> not better, ignored
+        if man_bckg:
+            print('#############################')
+            print('#### add manual background subtraction')
+            print('#############################')
+            man_bckg_rm(spec3_dir, folder, input_vars)
+            print('manual background subtraction done')
     return output3
 
 
@@ -204,22 +219,41 @@ def nodsubtraction(spec2_dir, folders):
         filesshort = []
         fileslong = []
         for f in files:
+            # 1275, obs5 change input files, from -2 to -5
             if f.split("_")[-2] == "mirifushort":
+            #if f.split("_")[-5] == "mirifushort":
                 filesshort.append(f)
             else:
                 fileslong.append(f)
 
-        fnew1s = filesshort[0].replace("cal.fits", "calnodsub.fits")
-        fnew2s = filesshort[1].replace("cal.fits", "calnodsub.fits")
+        dither = len(files)/2
 
-        im1 = jwst.datamodels.open(filesshort[0])
-        im2 = jwst.datamodels.open(filesshort[1])
+        if dither == 2:
+            fnew1s = filesshort[0].replace("cal.fits", "calnodsub.fits")
+            fnew2s = filesshort[1].replace("cal.fits", "calnodsub.fits")
+            im1 = jwst.datamodels.open(filesshort[0])
+            im2 = jwst.datamodels.open(filesshort[1])
+        
+            temp1 = im1.data - im2.data
+            temp2 = im2.data - im1.data
+        
+        elif dither == 4:
+            fnew1s = filesshort[0].replace("cal.fits", "calnodsub.fits")
+            fnew2s = filesshort[1].replace("cal.fits", "calnodsub.fits")
+            fnew3s = filesshort[2].replace("cal.fits", "calnodsub.fits")
+            fnew4s = filesshort[3].replace("cal.fits", "calnodsub.fits")
+            im1 = jwst.datamodels.open(filesshort[0])
+            im2 = jwst.datamodels.open(filesshort[1])
+            im3 = jwst.datamodels.open(filesshort[2])
+            im4 = jwst.datamodels.open(filesshort[3])
 
-        temp1 = im1.data - im2.data
-        temp2 = im2.data - im1.data
+            temp1 = im1.data - im2.data
+            temp2 = im2.data - im1.data
+            temp3 = im3.data - im4.data
+            temp4 = im4.data - im3.data
 
         # for 1189obs16, add manual background subtraction for channels 1a and 2a 
-        man_bgs = True
+        man_bgs = False
         if man_bgs:
             print('#############################')
             print('manual background subtraction')
@@ -235,27 +269,120 @@ def nodsubtraction(spec2_dir, folders):
             temp2[:, :516] = np.subtract(temp2[:, :516], bkg1)
             temp2[:, 516:] = np.subtract(temp2[:, 516:], bkg2)
 
-        im1.data = temp1
-        im2.data = temp2
         
-        im1.to_fits(fnew1s, overwrite=True)
-        im2.to_fits(fnew2s, overwrite=True)
+        if dither == 2:
+            im1.data = temp1
+            im2.data = temp2
+        
+            im1.to_fits(fnew1s, overwrite=True)
+            im2.to_fits(fnew2s, overwrite=True)
 
-        fnew1l = fileslong[0].replace("cal.fits", "calnodsub.fits")
-        fnew2l = fileslong[1].replace("cal.fits", "calnodsub.fits")
+            fnew1l = fileslong[0].replace("cal.fits", "calnodsub.fits")
+            fnew2l = fileslong[1].replace("cal.fits", "calnodsub.fits")
 
-        im1 = jwst.datamodels.open(fileslong[0])
-        im2 = jwst.datamodels.open(fileslong[1])
+            im1 = jwst.datamodels.open(fileslong[0])
+            im2 = jwst.datamodels.open(fileslong[1])
 
-        temp1 = im1.data - im2.data
-        temp2 = im2.data - im1.data
+            temp1 = im1.data - im2.data
+            temp2 = im2.data - im1.data
 
-        im1.data = temp1
-        im2.data = temp2
+            im1.data = temp1
+            im2.data = temp2
 
-        im1.to_fits(fnew1l, overwrite=True)
-        im2.to_fits(fnew2l, overwrite=True)
+            im1.to_fits(fnew1l, overwrite=True)
+            im2.to_fits(fnew2l, overwrite=True)
+        
+        elif dither == 4:
+            im1.data = temp1
+            im2.data = temp2
+            im3.data = temp3
+            im4.data = temp4
 
+            im1.to_fits(fnew1s, overwrite=True)
+            im2.to_fits(fnew2s, overwrite=True)
+            im3.to_fits(fnew3s, overwrite=True)
+            im4.to_fits(fnew4s, overwrite=True)
+
+            fnew1l = fileslong[0].replace("cal.fits", "calnodsub.fits")
+            fnew2l = fileslong[1].replace("cal.fits", "calnodsub.fits")
+            fnew3l = fileslong[2].replace("cal.fits", "calnodsub.fits")
+            fnew4l = fileslong[3].replace("cal.fits", "calnodsub.fits")
+
+            im1 = jwst.datamodels.open(fileslong[0])
+            im2 = jwst.datamodels.open(fileslong[1])
+            im2 = jwst.datamodels.open(fileslong[2])
+            im3 = jwst.datamodels.open(fileslong[3])
+
+            temp1 = im1.data - im2.data
+            temp2 = im2.data - im1.data
+            temp3 = im3.data - im4.data
+            temp4 = im4.data - im3.data
+
+            im1.data = temp1
+            im2.data = temp2
+            im3.data = temp3
+            im4.data = temp4
+
+            im1.to_fits(fnew1l, overwrite=True)
+            im2.to_fits(fnew2l, overwrite=True)
+            im3.to_fits(fnew3l, overwrite=True)
+            im4.to_fits(fnew4l, overwrite=True)
+
+def man_bckg_rm(spec3_dir, folder, input_vars): #this function only for pid 1278 obs40, only works with coord_system = ifualign as input
+    
+    print('#############################')
+    print('start manual background subtraction')
+    print('#############################')
+    files = [f for f in glob.glob(spec3_dir + "cubes/*3d.fits")]
+    print(files)
+    print(spec3_dir + "cubes/*3d.fits")
+    files = sorted(files)
+    print(f"Found {len(files)} files to process")
+        
+    for f in files:
+        da1 = jwst.datamodels.open(f)
+
+        corr = np.median(da1[10:25,:,5:15],2)
+
+        da1_corr = np.copy(da1)
+        corr_3d = np.concatenate([[corr]] * np.shape(da1[0,0,:])[0], axis=0)
+        corr_3d = np.transpose(corr_3d, (1, 2, 0))
+
+        da1[10:25,:,:] = da1[10:25,:,:]-corr_3d
+        da1.to_fits(da1, overwrite=True)
+        
+        print('#############################')
+        print('start 1d extraction')
+        print('#############################')
+
+        out_dir = os.path.join(spec3_dir, folder)
+        extract_1d(f, out_dir, input_vars)
+
+    print('#############################')
+    print('manual background subtraction done')
+    print('#############################')
+        
+def extract_1d(file, out_dir, input_vars): #only extract 1d array from cube
+    print('start 1d extraction')
+    im = datamodels.IFUCubeModel(file)
+    step = pipeline.calwebb_spec3.extract_1d_step.Extract1dStep()
+    step.output_dir = out_dir
+    
+    vars = input_vars['stage3']
+    step.save_results = vars['save_results']
+
+    if vars['ifu_autocen']:
+        step.ifu_autocen = True #, autocenter of circle where to take the mean
+    else:
+        step.center_xy = vars['center_x'], vars['center_y'] #24, 29
+    
+    step.ifu_rfcorr = vars['ifu_rfcorr'] #True  # , residual fringe correction instead in spec2
+    step.subtract_background = vars['subtract_background'] #False  # , take ring around as background and subtract, only do this the first time
+    step.ifu_rscale = vars['ifu_rscale'] #1  # set number of FWHMs fro radius
+    
+    print('run step')
+    step(im)
+    print('done')
 
 def checkdata(output_cubes):
     data_str = [d for d in glob.glob(output_cubes + "*_x1d.fits")]
